@@ -1,93 +1,122 @@
-// ======================================================
-// PORTFOLIO HOVER MP4 WITH MUTATIONOBSERVER
-// Works with Squarespace 7.1 portfolio blocks and filtering
-// ======================================================
+// ====== Inject necessary CSS ======
+const style = document.createElement('style');
+style.textContent = `
+.lessons-flex-container .grid-image {
+  position: relative !important;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+.lessons-flex-container .grid-item-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.lessons-flex-container video.portfolio-hover-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.lessons-flex-container .grid-meta-wrapper,
+.lessons-flex-container .lessons-grid-meta-container {
+  display: none !important;
+  height: 0 !important;
+}
+.custom-video-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 10px 12px;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.custom-video-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.6), rgba(0,0,0,0));
+}
+.custom-video-title {
+  position: relative;
+  z-index: 2;
+  font-size: 14px;
+  line-height: 1.3;
+  color: #fff;
+  margin: 0;
+}
+.lessons-flex-container li:hover .custom-video-overlay {
+  opacity: 1;
+}
+`;
+document.head.appendChild(style);
 
-(function() {
-  const containerSelector = ".lessons-flex-container"; // adjust if different
-  const itemSelector = "li";
-  const videoClass = "portfolio-hover-video";
-  const overlayClass = "custom-video-overlay";
-  const titleClass = "custom-video-title";
+// ====== Function to attach video + overlay to a portfolio item ======
+function attachVideo(item) {
+  if (item.dataset.videoAttached) return; // Prevent double attachment
+  const link = item.querySelector("a[href*='/portfolio/v/']");
+  const frame = item.querySelector(".grid-image");
+  const titleEl = item.querySelector(".lesson-title");
 
-  // Function to attach video & overlay to a portfolio item
-  function attachVideo(item) {
-    if (item.dataset.videoAttached) return; // prevent duplicate
-    
-    const link = item.querySelector("a[href*='/portfolio/v/']");
-    const frame = item.querySelector(".grid-image");
-    const titleEl = item.querySelector(".lesson-title");
+  if (!link || !frame || !titleEl) return;
 
-    if (!link || !frame || !titleEl) return;
+  const slug = link.getAttribute("href").split("/").pop();
+  const videoUrl = `/s/${slug}.mp4`;
 
-    const slug = link.getAttribute("href").split("/").pop();
-    const videoUrl = `/s/${slug}.mp4`;
+  // Video element
+  const video = document.createElement("video");
+  video.src = videoUrl;
+  video.muted = true;
+  video.loop = true;
+  video.playsInline = true;
+  video.preload = "metadata";
+  video.className = "portfolio-hover-video";
+  frame.appendChild(video);
 
-    // Video
-    const video = document.createElement("video");
-    video.src = videoUrl;
-    video.muted = true;
-    video.loop = true;
-    video.playsInline = true;
-    video.preload = "auto";
-    video.className = videoClass;
-    frame.appendChild(video);
+  // Custom overlay
+  const overlay = document.createElement("div");
+  overlay.className = "custom-video-overlay";
 
-    // Overlay
-    const overlay = document.createElement("div");
-    overlay.className = overlayClass;
-    overlay.style.position = "absolute";
-    overlay.style.inset = "0";
-    overlay.style.display = "flex";
-    overlay.style.alignItems = "flex-end";
-    overlay.style.padding = "10px 12px";
-    overlay.style.opacity = "0";
-    overlay.style.pointerEvents = "none";
-    overlay.style.transition = "opacity 0.25s ease";
+  const title = document.createElement("div");
+  title.className = "custom-video-title";
+  title.textContent = titleEl.textContent;
 
-    const title = document.createElement("div");
-    title.className = titleClass;
-    title.textContent = titleEl.textContent;
-    title.style.color = "#fff";
-    title.style.fontSize = "14px";
-    title.style.lineHeight = "1.3";
-    title.style.position = "relative";
-    title.style.zIndex = "2";
+  overlay.appendChild(title);
+  frame.appendChild(overlay);
 
-    overlay.appendChild(title);
-    frame.appendChild(overlay);
+  // Hover playback
+  item.addEventListener("mouseenter", () => {
+    video.currentTime = 0;
+    video.play();
+  });
 
-    // Hover events
-    item.addEventListener("mouseenter", () => {
-      video.currentTime = 0;
-      video.play();
-      overlay.style.opacity = "1";
-    });
+  item.addEventListener("mouseleave", () => {
+    video.pause();
+    video.currentTime = 0;
+  });
 
-    item.addEventListener("mouseleave", () => {
-      video.pause();
-      video.currentTime = 0;
-      overlay.style.opacity = "0";
-    });
+  item.dataset.videoAttached = "true"; // mark as attached
+}
 
-    // Mark as attached
-    item.dataset.videoAttached = true;
-  }
+// ====== Apply to all current items ======
+function attachAllVideos() {
+  document.querySelectorAll(".lessons-flex-container li").forEach(attachVideo);
+}
 
-  // Attach videos to all current items
-  function attachAll() {
-    document.querySelectorAll(`${containerSelector} ${itemSelector}`).forEach(attachVideo);
-  }
+// ====== Observe portfolio container for filtered / re-ordered items ======
+const container = document.querySelector(".lessons-flex-container");
+if (container) {
+  const observer = new MutationObserver(() => {
+    attachAllVideos();
+  });
+  observer.observe(container, { childList: true, subtree: true });
+}
 
-  // MutationObserver to handle filtered/rebuilt items
-  const container = document.querySelector(containerSelector);
-  if (container) {
-    const observer = new MutationObserver(() => {
-      attachAll();
-    });
-    observer.observe(container, { childList: true, subtree: true });
-  }
-
-  // Initial attach
-  attachAll();
-})();
+// ====== Initial attachment ======
+document.addEventListener("DOMContentLoaded", attachAllVideos);
