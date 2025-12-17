@@ -1,122 +1,94 @@
-// ====== Inject necessary CSS ======
-const style = document.createElement('style');
-style.textContent = `
-.lessons-flex-container .grid-image {
-  position: relative !important;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-}
-.lessons-flex-container .grid-item-image {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.lessons-flex-container video.portfolio-hover-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  pointer-events: none;
-}
-.lessons-flex-container .grid-meta-wrapper,
-.lessons-flex-container .lessons-grid-meta-container {
-  display: none !important;
-  height: 0 !important;
-}
-.custom-video-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: flex-end;
-  padding: 10px 12px;
-  opacity: 0;
-  transition: opacity 0.25s ease;
-  pointer-events: none;
-}
-.custom-video-overlay::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.6), rgba(0,0,0,0));
-}
-.custom-video-title {
-  position: relative;
-  z-index: 2;
-  font-size: 14px;
-  line-height: 1.3;
-  color: #fff;
-  margin: 0;
-}
-.lessons-flex-container li:hover .custom-video-overlay {
-  opacity: 1;
-}
-`;
-document.head.appendChild(style);
+// portfolio-hover.js
+(function() {
+  const portfolioSelector = ".lessons-flex-container";
+  const videoClass = "portfolio-hover-video";
+  const overlayClass = "custom-video-overlay";
+  const titleClass = "custom-video-title";
 
-// ====== Function to attach video + overlay to a portfolio item ======
-function attachVideo(item) {
-  if (item.dataset.videoAttached) return; // Prevent double attachment
-  const link = item.querySelector("a[href*='/portfolio/v/']");
-  const frame = item.querySelector(".grid-image");
-  const titleEl = item.querySelector(".lesson-title");
+  function setupPortfolioItem(item) {
+    if (item.dataset.videoAttached) return; // Already processed
 
-  if (!link || !frame || !titleEl) return;
+    const link = item.querySelector("a[href*='/portfolio/v/']");
+    const frame = item.querySelector(".grid-image");
+    const titleEl = item.querySelector(".lesson-title");
 
-  const slug = link.getAttribute("href").split("/").pop();
-  const videoUrl = `/s/${slug}.mp4`;
+    if (!link || !frame || !titleEl) return;
 
-  // Video element
-  const video = document.createElement("video");
-  video.src = videoUrl;
-  video.muted = true;
-  video.loop = true;
-  video.playsInline = true;
-  video.preload = "metadata";
-  video.className = "portfolio-hover-video";
-  frame.appendChild(video);
+    const slug = link.getAttribute("href").split("/").pop();
+    const videoUrl = `/s/${slug}.mp4`;
 
-  // Custom overlay
-  const overlay = document.createElement("div");
-  overlay.className = "custom-video-overlay";
+    // Video
+    const video = document.createElement("video");
+    video.src = videoUrl;
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+    video.className = videoClass;
+    video.style.position = "absolute";
+    video.style.inset = 0;
+    video.style.width = "100%";
+    video.style.height = "100%";
+    video.style.objectFit = "cover";
+    video.style.pointerEvents = "none";
 
-  const title = document.createElement("div");
-  title.className = "custom-video-title";
-  title.textContent = titleEl.textContent;
+    frame.appendChild(video);
 
-  overlay.appendChild(title);
-  frame.appendChild(overlay);
+    // Overlay
+    const overlay = document.createElement("div");
+    overlay.className = overlayClass;
+    overlay.style.position = "absolute";
+    overlay.style.inset = 0;
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "flex-end";
+    overlay.style.padding = "10px 12px";
+    overlay.style.opacity = 0;
+    overlay.style.transition = "opacity 0.25s ease";
+    overlay.style.pointerEvents = "none";
 
-  // Hover playback
-  item.addEventListener("mouseenter", () => {
-    video.currentTime = 0;
-    video.play();
-  });
+    const title = document.createElement("div");
+    title.className = titleClass;
+    title.textContent = titleEl.textContent;
+    title.style.position = "relative";
+    title.style.zIndex = 2;
+    title.style.fontSize = "14px";
+    title.style.lineHeight = 1.3;
+    title.style.color = "#fff";
+    title.style.margin = 0;
 
-  item.addEventListener("mouseleave", () => {
-    video.pause();
-    video.currentTime = 0;
-  });
+    overlay.appendChild(title);
+    frame.appendChild(overlay);
 
-  item.dataset.videoAttached = "true"; // mark as attached
-}
+    // Hover playback
+    item.addEventListener("mouseenter", () => {
+      video.currentTime = 0;
+      video.play();
+      overlay.style.opacity = 1;
+    });
 
-// ====== Apply to all current items ======
-function attachAllVideos() {
-  document.querySelectorAll(".lessons-flex-container li").forEach(attachVideo);
-}
+    item.addEventListener("mouseleave", () => {
+      video.pause();
+      video.currentTime = 0;
+      overlay.style.opacity = 0;
+    });
 
-// ====== Observe portfolio container for filtered / re-ordered items ======
-const container = document.querySelector(".lessons-flex-container");
-if (container) {
+    item.dataset.videoAttached = "true";
+  }
+
+  function processPortfolio() {
+    document.querySelectorAll(`${portfolioSelector} li`).forEach(setupPortfolioItem);
+  }
+
+  // Initial setup
+  processPortfolio();
+
+  // Observe mutations (for filtering)
   const observer = new MutationObserver(() => {
-    attachAllVideos();
+    processPortfolio();
   });
-  observer.observe(container, { childList: true, subtree: true });
-}
 
-// ====== Initial attachment ======
-document.addEventListener("DOMContentLoaded", attachAllVideos);
+  const container = document.querySelector(portfolioSelector);
+  if (container) {
+    observer.observe(container, { childList: true, subtree: true });
+  }
+})();
